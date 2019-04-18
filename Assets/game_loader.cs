@@ -13,16 +13,20 @@ public class game_loader : MonoBehaviour
     List<string[]> UnsolvedWordList = new List<string[]>();
     int starterWordIndex;
     int[] bodyWordIndex = new int[3];
-    string[] pieWord;
+    public string[] pieWord;
     string[] germanicWord;
     int syllableCount = 0;
     System.Random randomNum = new System.Random();
-    bool[] finishedSyllables;
+    public bool[][] finishedSyllables;
     public bool solved;
-    bool headerSelect;
+    public Transform anim1, anim2, anim3;
+    bool triskTimeGood;
+    float triskTime;
+    bool leftSolved;
+    bool rightSolved;
 
     void Start()
-    { 
+    {
         // Call function to create data structure for word list
         CreateDataStructure();
 
@@ -45,80 +49,45 @@ public class game_loader : MonoBehaviour
         }
 
         // Initialize the finished syllables tracker
-        finishedSyllables = new bool[germanicWord.Length];
-        for (int i = 0; i < germanicWord.Length; i++)
+        finishedSyllables = new bool[2][];
+        finishedSyllables[0] = new bool[pieWord.Length];
+        finishedSyllables[1] = new bool[pieWord.Length];
+        for (int i = 0; i < pieWord.Length; i++)
         {
-            finishedSyllables[i] = false;
+            finishedSyllables[0][i] = false;
+            finishedSyllables[1][i] = false;
         }
 
-        headerSelect = false;
+        rightSolved = false;
+        leftSolved = false;
     }
 
     void Update()
     {
-        int hLocation = 0;
+        // Special h case
+        specialH();
 
         if (solved)
         {
             solved = false;
-            headerTile[syllableCount, 1].GetComponent<TextMesh>().text = germanicWord[syllableCount];
-            syllableCount++;
-            generateBodyWords();
-            displayBodyTiles();
         }
 
-        // if pieword has an h, get the location
-
-        if (pieWord.Contains("h₁") || pieWord.Contains("h₂") || pieWord.Contains("h₃"))
-        {
-            for (int i = 0; i < pieWord.Length; i++)
-            {
-                if (pieWord[i].Contains("h₁") || pieWord[i].Contains("h₂") || pieWord[i].Contains("h₃"))
-                {
-                    hLocation = i;
-                }
-            }
-        }
-
-        // If h is clicked
-        if ((headerTile[hLocation,0].GetComponent<header_tile_behavior>().isSelected) && (pieWord.Contains("h₁") || pieWord.Contains("h₂") || pieWord.Contains("h₃")))
-        {
-            headerTile[pieWord.Length - 1, 0].GetComponent<TextMesh>().text = null;
-            pieWord = UnsolvedWordList[starterWordIndex][3].Split('-');
-            displayHeaderTiles();
-            generateBodyWords();
-            displayBodyTiles();
-        }
-
-        // If solve part of word
         if (answerCorrect())
         {
-            solved = true;
-        }
-        else
-        {
-            solved = false;
+            headerTile[syllableCount, 1].GetComponent<TextMesh>().text = germanicWord[syllableCount];
+            if (syllableCount < pieWord.Length)
+            {
+                syllableCount++;
+            }
+            generateBodyWords();
+            displayBodyTiles();
         }
 
-        // letter scroll
-        for (int i = 0; i < pieWord.Length; i++)
-        {
-            if (headerTile[i, 0].GetComponent<header_tile_behavior>().isSelected  && !headerSelect)
-            {
-                headerTile[syllableCount, 1].GetComponent<TextMesh>().text = germanicWord[syllableCount];
-                syllableCount = i;
-                generateBodyWords();
-                displayBodyTiles();
-                headerSelect = true;
-            }
-        }
-        if (!Input.GetMouseButton(0))
-        {
-            headerSelect = false;
-        }
+        // Change between letters
+        //changeLetter();
 
         // If the puzzle is finished
-        if (finishedSyllables.All(finished => finished))
+        if (finishedSyllables[0].All(finished => finished) && finishedSyllables[1].All(finished => finished))
         {
             Debug.Log("you win!");
             //you win!
@@ -152,20 +121,20 @@ public class game_loader : MonoBehaviour
     void initTiles()
     {
         string initializingString;
+        // Loop for each column
         for (int i = 0; i < 7; i++)
-        // loop for each column
         {
+            // Loop for each page
             for (int j = 0; j < 2; j++)
-            // loop for each page
             {
+                // Loop for each row
                 for (int k = 0; k < 3; k++)
-                // loop for each row
                 {
-                    //create string and find
+                    // Create string and find
                     initializingString = "Page " + (j + 1).ToString() + " body " + (k + 1).ToString() + " " + (i + 1).ToString();
                     bodyTile[i, k, j] = GameObject.Find(initializingString);
                 }
-                // headers only have 1 row, so create string and find
+                // Headers only have 1 row, so create string and find
                 initializingString = "Page " + (j + 1).ToString() + " header " + (i + 1).ToString();
                 headerTile[i, j] = GameObject.Find(initializingString);
             }
@@ -188,7 +157,6 @@ public class game_loader : MonoBehaviour
                 if (temp1.Contains(pieWord[syllableCount]) && temp2.Contains(germanicWord[syllableCount]))
                 {
                     matchingWords.Add(i);
-                    Debug.Log(pieWord[syllableCount] + " " + SolvedWordList[i][2]);
                 }
             }
         }
@@ -197,18 +165,62 @@ public class game_loader : MonoBehaviour
         for (int j = 0; j < 3; j++)
         {
             // Generate random word
-            if (matchingWords.Count > 0)
-            {
-                int rand = randomNum.Next(0, matchingWords.Count - 1);
-                bodyWordIndex[j] = matchingWords[rand];
-                matchingWords.RemoveAt(rand);
-            }
+            int rand = randomNum.Next(0, matchingWords.Count);
+            bodyWordIndex[j] = matchingWords[rand];
+            matchingWords.RemoveAt(rand);
         }
     }
 
     // This function displays both header words
     void displayHeaderTiles()
     {
+        // Spacing for pieWord
+        if (pieWord.Length == 2)
+        {
+            headerTile[0, 0].transform.position = new Vector2(-4f, 3f);
+            headerTile[1, 0].transform.position = new Vector2(-3f, 3f);
+        }
+        else if (pieWord.Length == 3)
+        {
+            headerTile[0, 0].transform.position = new Vector2(-4.5f, 3f);
+            headerTile[1, 0].transform.position = new Vector2(-3.5f, 3f);
+            headerTile[2, 0].transform.position = new Vector2(-2.5f, 3f);
+        }
+        else if (pieWord.Length == 4)
+        {
+            headerTile[0, 0].transform.position = new Vector2(-5f, 3f);
+            headerTile[1, 0].transform.position = new Vector2(-4f, 3f);
+            headerTile[2, 0].transform.position = new Vector2(-3f, 3f);
+            headerTile[3, 0].transform.position = new Vector2(-2f, 3f);
+        }
+        else if (pieWord.Length == 5)
+        {
+            headerTile[0, 0].transform.position = new Vector2(-5.5f, 3f);
+            headerTile[1, 0].transform.position = new Vector2(-4.5f, 3f);
+            headerTile[2, 0].transform.position = new Vector2(-3.5f, 3f);
+            headerTile[3, 0].transform.position = new Vector2(-2.5f, 3f);
+            headerTile[4, 0].transform.position = new Vector2(-1.5f, 3f);
+        }
+        else if (pieWord.Length == 6)
+        {
+            headerTile[0, 0].transform.position = new Vector2(-6f, 3f);
+            headerTile[1, 0].transform.position = new Vector2(-5f, 3f);
+            headerTile[2, 0].transform.position = new Vector2(-4f, 3f);
+            headerTile[3, 0].transform.position = new Vector2(-3f, 3f);
+            headerTile[4, 0].transform.position = new Vector2(-2f, 3f);
+            headerTile[5, 0].transform.position = new Vector2(-1f, 3f);
+        }
+        else if (pieWord.Length == 7)
+        {
+            headerTile[0, 0].transform.position = new Vector2(-6.5f, 3f);
+            headerTile[1, 0].transform.position = new Vector2(-5.5f, 3f);
+            headerTile[2, 0].transform.position = new Vector2(-4.5f, 3f);
+            headerTile[3, 0].transform.position = new Vector2(-3.5f, 3f);
+            headerTile[4, 0].transform.position = new Vector2(-2.5f, 3f);
+            headerTile[5, 0].transform.position = new Vector2(-1.5f, 3f);
+            headerTile[6, 0].transform.position = new Vector2(-0.5f, 3f);
+        }
+
         // Display PIE header
         for (int i = 0; i < pieWord.Length; i++)
         {
@@ -218,6 +230,53 @@ public class game_loader : MonoBehaviour
             headerTile[i, 0].GetComponent<TextMesh>().alignment = TextAlignment.Center;
             headerTile[i, 0].GetComponent<TextMesh>().characterSize = 0.05f;
             headerTile[i, 0].GetComponent<TextMesh>().fontSize = 200;
+        }
+
+        // Spacing for germanicWord
+        if (germanicWord.Length == 2)
+        {
+            headerTile[0, 1].transform.position = new Vector2(3f, 3f);
+            headerTile[1, 1].transform.position = new Vector2(4f, 3f);
+        }
+        else if (germanicWord.Length == 3)
+        {
+            headerTile[0, 1].transform.position = new Vector2(2.5f, 3f);
+            headerTile[1, 1].transform.position = new Vector2(3.5f, 3f);
+            headerTile[2, 1].transform.position = new Vector2(4.5f, 3f);
+        }
+        else if (germanicWord.Length == 4)
+        {
+            headerTile[0, 1].transform.position = new Vector2(2f, 3f);
+            headerTile[1, 1].transform.position = new Vector2(3f, 3f);
+            headerTile[2, 1].transform.position = new Vector2(4f, 3f);
+            headerTile[3, 1].transform.position = new Vector2(5f, 3f);
+        }
+        else if (germanicWord.Length == 5)
+        {
+            headerTile[0, 1].transform.position = new Vector2(1.5f, 3f);
+            headerTile[1, 1].transform.position = new Vector2(2.5f, 3f);
+            headerTile[2, 1].transform.position = new Vector2(3.5f, 3f);
+            headerTile[3, 1].transform.position = new Vector2(4.5f, 3f);
+            headerTile[4, 1].transform.position = new Vector2(5.5f, 3f);
+        }
+        else if (germanicWord.Length == 6)
+        {
+            headerTile[0, 1].transform.position = new Vector2(1f, 3f);
+            headerTile[1, 1].transform.position = new Vector2(2f, 3f);
+            headerTile[2, 1].transform.position = new Vector2(3f, 3f);
+            headerTile[3, 1].transform.position = new Vector2(4f, 3f);
+            headerTile[4, 1].transform.position = new Vector2(5f, 3f);
+            headerTile[5, 1].transform.position = new Vector2(6f, 3f);
+        }
+        else if (germanicWord.Length == 7)
+        {
+            headerTile[0, 1].transform.position = new Vector2(0.5f, 3f);
+            headerTile[1, 1].transform.position = new Vector2(1.5f, 3f);
+            headerTile[2, 1].transform.position = new Vector2(2.5f, 3f);
+            headerTile[3, 1].transform.position = new Vector2(3.5f, 3f);
+            headerTile[4, 1].transform.position = new Vector2(4.5f, 3f);
+            headerTile[5, 1].transform.position = new Vector2(6.5f, 3f);
+            headerTile[6, 1].transform.position = new Vector2(6.5f, 3f);
         }
 
         // Display Germanic header
@@ -250,6 +309,55 @@ public class game_loader : MonoBehaviour
         {
             string[] bodyWord = SolvedWordList[bodyWordIndex[i]][2].Split('-');
 
+            // Spacing for pieWord
+            float x = i;
+            float y = 1f - 1.5f * x;
+            if (bodyWord.Length == 2)
+            {
+                bodyTile[0, i, 0].transform.position = new Vector2(-4f, y);
+                bodyTile[1, i, 0].transform.position = new Vector2(-3f, y);
+            }
+            else if (bodyWord.Length == 3)
+            {
+                bodyTile[0, i, 0].transform.position = new Vector2(-4.5f, y);
+                bodyTile[1, i, 0].transform.position = new Vector2(-3.5f, y);
+                bodyTile[2, i, 0].transform.position = new Vector2(-2.5f, y);
+            }
+            else if (bodyWord.Length == 4)
+            {
+                bodyTile[0, i, 0].transform.position = new Vector2(-5f, y);
+                bodyTile[1, i, 0].transform.position = new Vector2(-4f, y);
+                bodyTile[2, i, 0].transform.position = new Vector2(-3f, y);
+                bodyTile[3, i, 0].transform.position = new Vector2(-2f, y);
+            }
+            else if (bodyWord.Length == 5)
+            {
+                bodyTile[0, i, 0].transform.position = new Vector2(-5.5f, y);
+                bodyTile[1, i, 0].transform.position = new Vector2(-4.5f, y);
+                bodyTile[2, i, 0].transform.position = new Vector2(-3.5f, y);
+                bodyTile[3, i, 0].transform.position = new Vector2(-2.5f, y);
+                bodyTile[4, i, 0].transform.position = new Vector2(-1.5f, y);
+            }
+            else if (bodyWord.Length == 6)
+            {
+                bodyTile[0, i, 0].transform.position = new Vector2(-6f, y);
+                bodyTile[1, i, 0].transform.position = new Vector2(-5f, y);
+                bodyTile[2, i, 0].transform.position = new Vector2(-4f, y);
+                bodyTile[3, i, 0].transform.position = new Vector2(-3f, y);
+                bodyTile[4, i, 0].transform.position = new Vector2(-2f, y);
+                bodyTile[5, i, 0].transform.position = new Vector2(-1f, y);
+            }
+            else if (bodyWord.Length == 7)
+            {
+                bodyTile[0, i, 0].transform.position = new Vector2(-6.5f, y);
+                bodyTile[1, i, 0].transform.position = new Vector2(-5.5f, y);
+                bodyTile[2, i, 0].transform.position = new Vector2(-4.5f, y);
+                bodyTile[3, i, 0].transform.position = new Vector2(-3.5f, y);
+                bodyTile[4, i, 0].transform.position = new Vector2(-2.5f, y);
+                bodyTile[5, i, 0].transform.position = new Vector2(-1.5f, y);
+                bodyTile[6, i, 0].transform.position = new Vector2(-0.5f, y);
+            }
+
             for (int j = 0; j < bodyWord.Length; j++)
             {
                 bodyTile[j, i, 0].GetComponent<TextMesh>().text = bodyWord[j];
@@ -266,6 +374,55 @@ public class game_loader : MonoBehaviour
         {
             string[] bodyWord = SolvedWordList[bodyWordIndex[i]][5].Split('-');
 
+            // Spacing for pieWord
+            float x = i;
+            float y = 1f - 1.5f * x;
+            if (bodyWord.Length == 2)
+            {
+                bodyTile[0, i, 1].transform.position = new Vector2(3f, y);
+                bodyTile[1, i, 1].transform.position = new Vector2(4f, y);
+            }
+            else if (bodyWord.Length == 3)
+            {
+                bodyTile[0, i, 1].transform.position = new Vector2(2.5f, y);
+                bodyTile[1, i, 1].transform.position = new Vector2(3.5f, y);
+                bodyTile[2, i, 1].transform.position = new Vector2(4.5f, y);
+            }
+            else if (bodyWord.Length == 4)
+            {
+                bodyTile[0, i, 1].transform.position = new Vector2(2f, y);
+                bodyTile[1, i, 1].transform.position = new Vector2(3f, y);
+                bodyTile[2, i, 1].transform.position = new Vector2(4f, y);
+                bodyTile[3, i, 1].transform.position = new Vector2(5f, y);
+            }
+            else if (bodyWord.Length == 5)
+            {
+                bodyTile[0, i, 1].transform.position = new Vector2(1.5f, y);
+                bodyTile[1, i, 1].transform.position = new Vector2(2.5f, y);
+                bodyTile[2, i, 1].transform.position = new Vector2(3.5f, y);
+                bodyTile[3, i, 1].transform.position = new Vector2(4.5f, y);
+                bodyTile[4, i, 1].transform.position = new Vector2(5.5f, y);
+            }
+            else if (bodyWord.Length == 6)
+            {
+                bodyTile[0, i, 1].transform.position = new Vector2(1f, y);
+                bodyTile[1, i, 1].transform.position = new Vector2(2f, y);
+                bodyTile[2, i, 1].transform.position = new Vector2(3f, y);
+                bodyTile[3, i, 1].transform.position = new Vector2(4f, y);
+                bodyTile[4, i, 1].transform.position = new Vector2(5f, y);
+                bodyTile[5, i, 1].transform.position = new Vector2(6f, y);
+            }
+            else if (bodyWord.Length == 7)
+            {
+                bodyTile[0, i, 1].transform.position = new Vector2(0.5f, y);
+                bodyTile[1, i, 1].transform.position = new Vector2(1.5f, y);
+                bodyTile[2, i, 1].transform.position = new Vector2(2.5f, y);
+                bodyTile[3, i, 1].transform.position = new Vector2(3.5f, y);
+                bodyTile[4, i, 1].transform.position = new Vector2(4.5f, y);
+                bodyTile[5, i, 1].transform.position = new Vector2(5.5f, y);
+                bodyTile[6, i, 1].transform.position = new Vector2(6.5f, y);
+            }
+
             for (int j = 0; j < bodyWord.Length; j++)
             {
                 bodyTile[j, i, 1].GetComponent<TextMesh>().text = bodyWord[j];
@@ -278,31 +435,50 @@ public class game_loader : MonoBehaviour
         }
     }
 
-    // Returns true if the user has selected the correct letters
+    // Returns true if the user has selected the correct letters on both sides of the game
     bool answerCorrect()
     {
+
         string[][] bodyWords = new string[3][];
 
         //may need these for solving other side of words
         string[][] translatedBodyWords = new string[3][];
-        bool[] translatedCorrect = new bool[3];
-
-
-        bool[] rowCorrect = new bool[3];
-        body_tile_behavior focusTile;
+        bool bothSolved = false;
 
         // Get body words
         for (int i = 0; i < 3; i++)
         {
             bodyWords[i] = SolvedWordList[bodyWordIndex[i]][2].Split('-');
-            
+            translatedBodyWords[i] = SolvedWordList[bodyWordIndex[i]][5].Split('-');
         }
 
-        /*for (int e = 3; e < 6; e++)
+        if (!leftSolved)
         {
-            translatedBodyWords[e] = SolvedWordList[bodyWordIndex[e]][2].Split('-');
-            Debug.Log(translatedBodyWords[e]);
-        }*/
+            leftSolved = testLeftSide(bodyWords);
+        }
+
+        if (!rightSolved)
+        {
+            rightSolved = testRightSide(translatedBodyWords);
+        }
+
+        if (leftSolved && rightSolved)
+        {
+            Debug.Log("BOFF");
+            bothSolved = true;
+            leftSolved = false;
+            rightSolved = false;
+        }
+
+        return bothSolved;
+    }
+
+    //Function that returns true if the user selects all correct letters on a side
+    bool testLeftSide(string[][] bodyWords)
+    {
+
+        bool[] rowCorrect = new bool[3];
+        body_tile_behavior focusTile;
 
         // Loop for each row
         for (int i = 0; i < 3; i++)
@@ -317,25 +493,183 @@ public class game_loader : MonoBehaviour
                     rowCorrect[i] = true;
                 }
                 // If selected and incorrect and not h, set that row to incorrect and leave the loop
-                else if ((focusTile.isSelected && (pieWord[syllableCount] != bodyWords[i][j]))
-                    && !(bodyWords[i][j] == "h₁" || bodyWords[i][i] == "h₂" || bodyWords[i][j] == "h₃"))
+                else if (focusTile.isSelected && (pieWord[syllableCount] != bodyWords[i][j]))
                 {
                     rowCorrect[i] = false;
-                    break;
+                    return false;
+                }
+            }
+        }
+        if (rowCorrect.All(finished => finished))
+        {
+            solved = true;
+            finishedSyllables[0][syllableCount] = true;
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+
+    //Function that tests whether a side is correct
+    bool testRightSide(string[][] bodyWords)
+    {
+        bool[] rowCorrect = new bool[3];
+        body_tile_behavior focusTile;
+
+        // Loop for each row
+        for (int i = 0; i < 3; i++)
+        {
+            // Loop for each column
+            for (int j = 0; j < bodyWords[i].Length; j++)
+            {
+                focusTile = bodyTile[j, i, 1].GetComponent<body_tile_behavior>();
+                // If selected and correct, set that row to correct
+                if (focusTile.isSelected && (germanicWord[syllableCount] == bodyWords[i][j]))
+                {
+                    rowCorrect[i] = true;
+                }
+                // If selected and incorrect, set that row to incorrect and leave the loop
+                else if (focusTile.isSelected && (germanicWord[syllableCount] != bodyWords[i][j]))
+                {
+                    rowCorrect[i] = false;
+                    return false;
+                }
+            }
+        }
+        if (rowCorrect.All(finished => finished))
+        {
+            finishedSyllables[1][syllableCount] = true;
+            solved = true;
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+
+    // Function for switching between letters when clicked
+/*    void changeLetter()
+    {
+        if (!pieWord.Contains("h₁") && !pieWord.Contains("h₂") && !pieWord.Contains("h₃"))
+        {
+            for (int i = 2; i < pieWord.Length; i++)
+            {
+                if (headerTile[i, 0].GetComponent<header_tile_behavior>().isSelected && syllableCount != i)
+                {
+                    syllableCount = i;
+                    generateBodyWords();
+                    displayBodyTiles();
+                }
+            }
+        }
+    }*/
+
+    void specialH()
+    {
+        int hLocation = 0;
+
+        // If pieword has an h, get the location
+        if (pieWord.Contains("h₁") || pieWord.Contains("h₂") || pieWord.Contains("h₃"))
+        {
+            for (int i = 0; i < pieWord.Length; i++)
+            {
+                if (pieWord[i].Contains("h₁") || pieWord[i].Contains("h₂") || pieWord[i].Contains("h₃"))
+                {
+                    hLocation = i;
                 }
             }
         }
 
-        // If all rows are correct, return true
-        if (rowCorrect[0] && rowCorrect[1] && rowCorrect[2])
+        // If h is clicked
+        if ((headerTile[hLocation, 0].GetComponent<header_tile_behavior>().isSelected) && (pieWord.Contains("h₁") || pieWord.Contains("h₂") || pieWord.Contains("h₃")))
         {
-            finishedSyllables[syllableCount] = true;
-            return true;
+            headerTile[pieWord.Length - 1, 0].GetComponent<TextMesh>().text = null;
+            pieWord = UnsolvedWordList[starterWordIndex][3].Split('-');
+            displayHeaderTiles();
+            generateBodyWords();
+            displayBodyTiles();
+
+            // Play animation
+            int rand = randomNum.Next(0, 3);
+            if (rand == 0)
+                Instantiate(anim1, headerTile[hLocation, 0].transform.position, headerTile[hLocation, 0].transform.rotation);
+            else if (rand == 1)
+                Instantiate(anim2, headerTile[hLocation, 0].transform.position, headerTile[hLocation, 0].transform.rotation);
+            else if (rand == 2)
+                Instantiate(anim3, headerTile[hLocation, 0].transform.position, headerTile[hLocation, 0].transform.rotation);
         }
-        // Otherwise return false 
-        else 
+    }
+
+    void triskelion()
+    {
+        bool[,] rowSelected = new bool[3, 2];
+        string[][] bodyWords = new string[3][];
+        bool oneSelected = false;
+        bool multipleSelected = false;
+        int[] selectedRow = new int[2];
+
+        // Get body words
+        for (int i = 0; i < 3; i++)
         {
-            return false;
+            bodyWords[i] = SolvedWordList[bodyWordIndex[i]][2].Split('-');
+        }
+
+        // Loop for each row
+        for (int i = 0; i < 3; i++)
+        {
+            // Loop for each column
+            for (int j = 0; j < bodyWords[i].Length; j++)
+            {
+                for (int k = 0; k < 2; k++)
+                {
+                    if (bodyTile[i, j, k].GetComponent<body_tile_behavior>().isSelected)
+                    {
+                        rowSelected[i, k] = true;
+                    }
+                    else
+                    {
+                        rowSelected[i, k] = false;
+                    }
+                }
+            }
+        }
+
+        for (int i = 0; i < 3; i++)
+        {
+            for (int j = 0; j < 2; j++)
+            {
+                if (!oneSelected && rowSelected[i, j])
+                {
+                    oneSelected = true;
+                    selectedRow[0] = i;
+                    selectedRow[1] = j;
+                }
+                else if (oneSelected && rowSelected[i, j])
+                {
+                    multipleSelected = true;
+                    triskTimeGood = false;
+                }
+            }
+        }
+
+        if (!oneSelected)
+        {
+            triskTimeGood = false;
+        }
+
+        if (oneSelected && !multipleSelected && !triskTimeGood)
+        {
+            triskTime = Time.time;
+            triskTimeGood = true;
+        }
+
+        if (triskTimeGood && ((triskTime - Time.time) == 4))
+        {
+            //open triskelion
+            Debug.Log("trisk has been opened");
         }
     }
 }

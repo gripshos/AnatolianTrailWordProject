@@ -8,17 +8,19 @@ public class header_tile_behavior : MonoBehaviour
     RectTransform rectangle;
     Vector3 mouseLocation;
     game_loader game;
+    int thisTile;
+    int thisPage;
 
     void Start()
     {
         rectangle = GetComponent<RectTransform>();
-        isSelected = false;
+        game = GameObject.Find("Master Script").GetComponent<game_loader>();
+        thisTile = gameObject.name[14] - '0' - 1;
+        thisPage = gameObject.name[5] - '0' - 1;
     }
 
     void Update()
     {
-        if (isSelected)
-            Debug.Log("isSelected = true");
         // Convert mouse coordinates to world coordinates to local coordinates
         mouseLocation = Input.mousePosition;
         mouseLocation.z = 10F;
@@ -26,13 +28,21 @@ public class header_tile_behavior : MonoBehaviour
         mouseLocation = rectangle.InverseTransformPoint(mouseLocation);
 
         // Is the tile being clicked?
-        if (rectangle.rect.Contains(mouseLocation) && Input.GetMouseButton(0))
+        if (rectangle.rect.Contains(mouseLocation) && Input.GetMouseButtonDown(0))
         {
             isSelected = true;
         }
         else
         {
             isSelected = false;
+        }
+
+        if (thisTile < game.GetComponent<game_loader>().pieWord.Length)
+        {
+            if (game.GetComponent<game_loader>().finishedSyllables[thisPage][thisTile])
+            {
+                GetComponent<TextMesh>().color = Color.blue;
+            }
         }
     }
 }

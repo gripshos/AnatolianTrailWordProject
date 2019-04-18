@@ -35,8 +35,9 @@ public class body_tile_behavior : MonoBehaviour
             isBeingClicked = false;
         }
 
-        // Reset status when the puzzle is solved
-        if (game.solved && !Input.GetMouseButton(0))
+        // Reset status when the puzzle is 
+
+        if (game.solved)
         {
             isBeingClicked = false;
             isSelected = false;
@@ -46,10 +47,8 @@ public class body_tile_behavior : MonoBehaviour
         {
             isSelected = true;
             GetComponent<TextMesh>().color = Color.green;
-            
-            Debug.Log(GetComponent<TextMesh>().text);
         }
-        else if (GetComponent<TextMesh>().color != Color.clear)
+        else
         {
             GetComponent<TextMesh>().color = Color.black;
         }
